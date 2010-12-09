@@ -1,0 +1,8 @@
+LICENSE
+MANIFEST
+META.yml
+Makefile.PL
+README
+dist.ini
+examples/example.pl
+lib/Opt/Imistic.pm
