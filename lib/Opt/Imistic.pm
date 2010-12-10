@@ -3,9 +3,12 @@ package Opt::Imistic;
 use strict;
 use warnings;
 
-our %opts;
-
+our $VERSION = 0.02;
+use Data::Dumper;
 sub import {
+    my $package = shift;
+    my %hints = @_;
+
     # we alter @ARGV on purpose.
     while (my $arg = shift @ARGV) {
         last if $arg eq '--';
@@ -47,16 +50,25 @@ sub import {
         }
     }
 
-    for my $o ( keys %opts ) {
-        $opts{$o} = 1 and next if not defined $opts{$o};
+    for my $o ( keys %ARGV ) {
+        do { $ARGV{$o} = 1; next } if not defined $ARGV{$o};
 
-        if (ref $opts{$o} eq 'ARRAY') {
+        if (ref $ARGV{$o} eq 'ARRAY') {
             # provide a count for any option that never got a value.
-            $opts{$o} = @{ $opts{$o} } unless grep defined, @{ $opts{$o} };
+            $ARGV{$o} = @{ $ARGV{$o} } unless grep defined, @{ $ARGV{$o} };
         }
     }
 
     _store('-', $_) for @ARGV;
+
+    if (exists $hints{demand}) {
+        my $die_message = "Missing option: %s\n";
+        $die_message .= "\n" . $hints{usage} if exists $hints{usage};
+
+        for (@{ $hints{demand} }) {
+            die sprintf($die_message, $_) unless exists $ARGV{$_};
+        }
+    }
 }
 
 # Stores repeated options in an array.
@@ -69,11 +81,11 @@ sub _store {
     # Then we can collapse undef-only arrayrefs into counts later. So we don't
     # care if the val is undef. yay!
 
-    if (exists $opts{$arg}) {
-            $opts{$arg} = [ $opts{$arg} ] unless ref $opts{$arg} eq 'ARRAY';
-            push @{ $opts{$arg} }, $val;
+    if (exists $ARGV{$arg}) {
+            $ARGV{$arg} = [ $ARGV{$arg} ] unless ref $ARGV{$arg} eq 'ARRAY';
+            push @{ $ARGV{$arg} }, $val;
     } else {
-        $opts{$arg} = $val;
+        $ARGV{$arg} = $val;
     }
 }
 
@@ -105,7 +117,7 @@ Opt::Imistic - Optimistic option parsing
 =head1 SYNOPSIS
 
     use Opt::Imistic;
-    die if $Opt::Imistic::opts{exit};
+    die if $ARGV{exit};
 
 =head1 
 
@@ -119,13 +131,13 @@ a toggle (or maybe a counter), or a key/value pair. Opt::Imistic assumes this
 and parses your options. If you need more control over it, Opt::Imistic is not
 for you and you might want to try a module such as L<Getopt::Long>.
 
-The hash C<%Opt::Imistic::opts> contains your arguments. The argument name is
-provided as the key and the value is provided as the value. If the argument
-appeared multiple times, the values are grouped under the same key as an array
-ref. If you use the same argument multiple times and sometimes without a value
-then that instance of the option will be represented as undef. If you provide
-the option multiple times and none has a value then your value is the count of
-the number of times the option appeared.
+The hash C<%ARGV> contains your arguments. The argument name is provided as the
+key and the value is provided as the value. If the argument appeared multiple
+times, the values are grouped as an array ref. If you use the same argument
+multiple times and sometimes without a value then that instance of the option
+will be represented as undef. If you provide the option multiple times and none
+has a value then your value is the count of the number of times the option
+appeared.
 
 Long options start with C<-->. Short options are single letters and start with
 C<->. Multiple short options can be grouped without repeating the C<->.
