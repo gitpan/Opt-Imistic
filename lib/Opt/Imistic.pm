@@ -3,11 +3,12 @@ package Opt::Imistic;
 use strict;
 use warnings;
 
-our $VERSION = 0.02;
-use Data::Dumper;
+our $VERSION = 0.03;
+
 sub import {
     my $package = shift;
-    my %hints = @_;
+    my ($demand,$usage) = @_;
+    my %can_has_val;
 
     # we alter @ARGV on purpose.
     while (my $arg = shift @ARGV) {
@@ -26,6 +27,8 @@ sub import {
             else {
                 $val = _can_has_value();
             }
+            
+            $can_has_val{$arg} = 1 if defined $val;
 
             _store($arg, $val);
         }
@@ -39,6 +42,7 @@ sub import {
             
             if (defined(my $val = _can_has_value())) {
                 _store(pop @opts, $val);
+                $can_has_val{$arg} = 1 if defined $val;
             }
 
             _store($_) for @opts;
@@ -61,12 +65,19 @@ sub import {
 
     _store('-', $_) for @ARGV;
 
-    if (exists $hints{demand}) {
-        my $die_message = "Missing option: %s\n";
-        $die_message .= "\n" . $hints{usage} if exists $hints{usage};
+    if (ref $demand eq 'ARRAY') {
+        my $missing  = "Missing option: %s\n";
+        my $no_value = "Option %s requires an argument\n";
+        my $usage = "";
+        $usage = "\n" . $usage if $usage;
 
-        for (@{ $hints{demand} }) {
-            die sprintf($die_message, $_) unless exists $ARGV{$_};
+        for (@$demand) {
+            my $die_message;
+            $die_message = sprintf $missing . $usage, $_ unless exists $ARGV{$_};
+            die $die_message if $die_message;
+
+            $die_message = sprintf $no_value . $usage, $_ unless $can_has_val{$_};
+            die $die_message if $die_message;
         }
     }
 }
@@ -95,6 +106,8 @@ sub _store {
 sub _can_has_value {
     my $val = $ARGV[0];
 
+    return unless $val;
+
     if ($val eq '-') {
         return shift @ARGV;
     }
@@ -118,6 +131,11 @@ Opt::Imistic - Optimistic option parsing
 
     use Opt::Imistic;
     die if $ARGV{exit};
+
+Z<>
+    
+    use Opt::Imistic ( demand => ['c'], usage => 'Usage: prog -c foo' );
+    # Program will fail at BEGIN if -c is not passed.
 
 =head1 
 
@@ -150,6 +168,8 @@ with a C<-> and cannot be construed as the value to an option. You can use the
 standard C<--> to force the end of option parsing. Everything after the last
 option goes under the special key C<->, which can never be an option name. These
 are also left on @ARGV so that C<< <> >> still works.
+
+=head1 EXAMPLES
 
 Examples help
 
@@ -200,6 +220,18 @@ Z<>
 
 Z<>    
 
+=head1 HINTS
+
+Provide an array ref as the first argument to the import list to define a list
+of required options. Required options are assumed to require an argument because
+it doesn't make sense to require an option at compile time if you didn't need a
+value for it.
+
+The second argument may be a string, which will be displayed as a usage string
+if a required option is not passed.
+
+Other hints may be implemented.
+
 =head1 BUGS AND TODOS
 
 No known bugs, but undesirable behaviour should be reported.
@@ -212,8 +244,6 @@ Please note the TODO list first:
 delimiting from their values
 
 =item Implement further hints to alias options.
-
-=item Implement a required list and a usage string
 
 =back
 

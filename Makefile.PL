@@ -20,7 +20,7 @@ my %WriteMakefileArgs = (
   'LICENSE' => 'mit',
   'NAME' => 'Opt::Imistic',
   'PREREQ_PM' => {},
-  'VERSION' => '0.02',
+  'VERSION' => '0.03',
   'test' => {
     'TESTS' => ''
   }
